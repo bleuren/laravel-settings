@@ -1,0 +1,42 @@
+{
+    "name": "bleuren/laravel-setting",
+    "description": "A package to manage application settings through a database in Laravel applications.",
+    "keywords": [
+        "bleuren",
+        "laravel",
+        "setting",
+        "settings",
+        "database",
+        "cache"
+    ],
+    "homepage": "https://github.com/bleuren/laravel-setting",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Bleuren",
+            "email": "bleuren421@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "type": "library",
+    "require": {
+        "php": "^8.3",
+        "illuminate/support": "^11.0",
+        "illuminate/database": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Bleuren\\Setting\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Bleuren\\Setting\\SettingServiceProvider"
+            ],
+            "aliases": {
+                "Setting": "Bleuren\\Setting\\Facades\\Setting"
+            }
+        }
+    }
+}
