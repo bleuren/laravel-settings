@@ -19,7 +19,7 @@ class Setting extends Model
      * @param  string  $key  The key of the setting.
      * @return string The full cache key.
      */
-    protected static function cacheKey(string $key): string
+    public static function cacheKey(string $key): string
     {
         $prefix = config('settings.cache_prefix', 'settings.');
 
@@ -43,14 +43,24 @@ class Setting extends Model
     {
         $cacheKey = self::cacheKey($key);
 
-        return Cache::rememberForever($cacheKey, function () use ($key) {
-            return self::where('key', $key)->firstOrFail()->value;
-        }) ?? $default;
+        try {
+            return Cache::rememberForever($cacheKey, function () use ($key) {
+                $setting = self::where('key', $key)->first();
+
+                return $setting ? $setting->value : null;
+            }) ?? $default;
+        } catch (\Throwable $e) {
+            return $default;
+        }
     }
 
     public static function set(string $key, mixed $value, ?string $description = null): self
     {
-        $setting = self::updateOrCreate(['key' => $key], ['value' => $value, 'description' => $description]);
+        $setting = self::updateOrCreate(
+            ['key' => $key],
+            ['value' => $value, 'description' => $description]
+        );
+
         $cacheKey = self::cacheKey($key);
         Cache::forever($cacheKey, $value);
 

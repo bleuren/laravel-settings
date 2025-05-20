@@ -14,7 +14,7 @@ class SettingClear extends Command
 
     protected $description = 'Clears all cache for the settings';
 
-    public function handle()
+    public function handle(): int
     {
         $settings = Setting::all('key');
         foreach ($settings as $setting) {
@@ -24,6 +24,6 @@ class SettingClear extends Command
 
         $this->info('All settings cache has been cleared.');
 
-        return 0;
+        return Command::SUCCESS;
     }
 }

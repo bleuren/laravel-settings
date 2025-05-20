@@ -1,4 +1,4 @@
-# Laravel Setting Package
+# Laravel Settings Package
 
 This package provides an easy way to manage application settings via a database in Laravel applications. With this package, you can read and set project-specific parameters and use them within your code, leveraging the power of Laravel's caching to optimize access and modification of these settings.
 
@@ -14,7 +14,7 @@ This package provides an easy way to manage application settings via a database 
 To install the package, run the following command in your Laravel project:
 
 ```bash
-composer require bleuren/laravel-setting
+composer require bleuren/laravel-settings
 ```
 
 ## Configuration
@@ -22,7 +22,7 @@ composer require bleuren/laravel-setting
 After installation, publish the migration file with the following command:
 
 ```bash
-php artisan vendor:publish --tag=laravel-setting
+php artisan vendor:publish --tag=laravel-settings
 ```
 
 Run the migrations to create the `settings` table:
@@ -61,8 +61,8 @@ This command will clear all cached settings.
 
 ## Contributing
 
-Contributions are welcome, and thank you for your interest in contributing to the Laravel Setting package. Please feel free to submit any issues or pull requests.
+Contributions are welcome, and thank you for your interest in contributing to the Laravel Settings package. Please feel free to submit any issues or pull requests.
 
 ## License
 
-This Laravel Setting package is open-sourced software licensed under the [MIT license](http://opensource.org/licenses/MIT).
+This Laravel Settings package is open-sourced software licensed under the [MIT license](http://opensource.org/licenses/MIT).

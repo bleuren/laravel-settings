@@ -1,5 +1,5 @@
 {
-    "name": "bleuren/laravel-setting",
+    "name": "bleuren/laravel-settings",
     "description": "A package to manage application settings through a database in Laravel applications.",
     "keywords": [
         "bleuren",
@@ -9,7 +9,7 @@
         "database",
         "cache"
     ],
-    "homepage": "https://github.com/bleuren/laravel-setting",
+    "homepage": "https://github.com/bleuren/laravel-settings",
     "license": "MIT",
     "authors": [
         {

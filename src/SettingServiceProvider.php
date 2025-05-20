@@ -11,17 +11,15 @@ class SettingServiceProvider extends ServiceProvider
 {
     /**
      * Bootstrap any package services.
-     *
-     * @return void
      */
-    public function boot()
+    public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
         if ($this->app->runningInConsole()) {
             $this->publishes([
                 __DIR__.'/../database/migrations' => database_path('migrations'),
-            ], 'laravel-setting');
+            ], 'laravel-settings');
 
             $this->commands([
                 SettingClear::class,
@@ -31,13 +29,13 @@ class SettingServiceProvider extends ServiceProvider
 
     /**
      * Register any package services.
-     *
-     * @return void
      */
-    public function register()
+    public function register(): void
     {
         $this->app->singleton('setting', function ($app) {
-            return new Setting();
+            return new Setting;
         });
+
+        $this->mergeConfigFrom(__DIR__.'/../config/settings.php', 'settings');
     }
 }
