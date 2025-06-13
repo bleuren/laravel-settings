@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Bleuren\Setting;
+namespace Bleuren\LaravelSetting;
 
-use Bleuren\Setting\Console\Commands\SettingClear;
+use Bleuren\LaravelSetting\Console\Commands\SettingClear;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 

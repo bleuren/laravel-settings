@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Bleuren\Setting;
+namespace Bleuren\LaravelSetting;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;

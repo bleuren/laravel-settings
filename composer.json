@@ -26,16 +26,19 @@
     },
     "autoload": {
         "psr-4": {
-            "Bleuren\\Setting\\": "src/"
-        }
+            "Bleuren\\LaravelSetting\\": "src/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Bleuren\\Setting\\SettingServiceProvider"
+                "Bleuren\\LaravelSetting\\SettingServiceProvider"
             ],
             "aliases": {
-                "Setting": "Bleuren\\Setting\\Facades\\Setting"
+                "Setting": "Bleuren\\LaravelSetting\\Facades\\Setting"
             }
         }
     }

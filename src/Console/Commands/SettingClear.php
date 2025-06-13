@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Bleuren\Setting\Console\Commands;
+namespace Bleuren\LaravelSetting\Console\Commands;
 
-use Bleuren\Setting\Setting;
+use Bleuren\LaravelSetting\Setting;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 
