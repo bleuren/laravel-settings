@@ -2,20 +2,23 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     /**
-     * Run the migrations.
-     *
-     * @return void
+     * 執行遷移
      */
     public function up(): void
     {
-        Schema::create('settings', function (Blueprint $table) {
+        // 取得設定表名稱和資料庫連接
+        $tableName = Config::get('settings.table', 'settings');
+        $connection = Config::get('settings.database_connection');
+
+        Schema::connection($connection)->create($tableName, function (Blueprint $table) {
             $table->id();
-            $table->string('key')->unique();
+            $table->string('key', 191)->unique()->index();
             $table->string('description')->nullable();
             $table->text('value')->nullable();
             $table->timestamps();
@@ -23,12 +26,14 @@ return new class extends Migration
     }
 
     /**
-     * Reverse the migrations.
-     *
-     * @return void
+     * 還原遷移
      */
     public function down(): void
     {
-        Schema::dropIfExists('settings');
+        // 取得設定表名稱和資料庫連接
+        $tableName = Config::get('settings.table', 'settings');
+        $connection = Config::get('settings.database_connection');
+
+        Schema::connection($connection)->dropIfExists($tableName);
     }
 };
