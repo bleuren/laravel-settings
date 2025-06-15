@@ -42,31 +42,22 @@ class SettingServiceProvider extends ServiceProvider
     {
         // 註冊單例
         $this->app->singleton('setting', function (Application $app) {
-            return new Setting;
+            return new SettingManager;
         });
 
         // 合併配置文件
         $this->mergeConfigFrom(__DIR__.'/../config/settings.php', 'settings');
 
-        // 延遲加載以提高性能
-        $this->app->extend('setting', function (Setting $setting, Application $app) {
-            // 在應用啟動時預載入常用設定
+        // 在應用啟動時預載入常用設定
+        $this->app->booted(function () {
             if (config('settings.eager_load', false)) {
-                if ($app->booted) {
-                    $app->booting(function () {
-                        $this->preloadSettings();
-                    });
-                }
+                $this->preloadSettings();
             }
-
-            return $setting;
         });
     }
 
     /**
-     * 獲取由此服務提供者提供的服務。
-     *
-     * @return array<string>
+     * 獲取由此服務提供者提供的服務
      */
     public function provides(): array
     {
@@ -78,11 +69,18 @@ class SettingServiceProvider extends ServiceProvider
      */
     protected function preloadSettings(): void
     {
-        if (config('settings.eager_load_keys', [])) {
-            $keys = config('settings.eager_load_keys', []);
+        $keys = config('settings.eager_load_keys', []);
+        if (empty($keys)) {
+            return;
+        }
+
+        try {
+            $settingManager = app('setting');
             foreach ($keys as $key) {
-                Setting::get($key);
+                $settingManager->get($key);
             }
+        } catch (\Throwable $e) {
+            report($e);
         }
     }
 }
