@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Bleuren\LaravelSetting\Console\Commands;
 
-use Bleuren\LaravelSetting\Setting;
+use Bleuren\LaravelSetting\SettingManager;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 
@@ -34,9 +34,11 @@ class SettingClear extends Command
      */
     protected function clearSingleSetting(string $key): void
     {
-        $cacheKey = Setting::cacheKey($key);
+        $manager = app(SettingManager::class);
+        $cacheKey = $manager->cacheKey($key);
+
         Cache::forget($cacheKey);
-        Setting::clearMemoryCache();
+        $manager->clearMemoryCache();
 
         $this->info("設定 '{$key}' 的緩存已清除。");
     }
@@ -46,16 +48,17 @@ class SettingClear extends Command
      */
     protected function clearAllSettings(): void
     {
+        $manager = app(SettingManager::class);
+        $settings = $manager->all(['key']);
         $settingsCount = 0;
-        $settings = Setting::all('key');
 
         foreach ($settings as $setting) {
-            $cacheKey = Setting::cacheKey($setting->key);
+            $cacheKey = $manager->cacheKey($setting->key);
             Cache::forget($cacheKey);
             $settingsCount++;
         }
 
-        Setting::clearMemoryCache();
+        $manager->clearMemoryCache();
         $this->info("所有設定緩存已清除，共 {$settingsCount} 項設定。");
     }
 }

@@ -1,0 +1,13 @@
+/vendor/
+.env
+.env.testing
+.phpunit.result.cache
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+.coverage/
+/tests/.phpunit.cache/
+composer.lock
+.DS_Store
+Thumbs.db 

@@ -24,6 +24,12 @@
         "illuminate/support": "^11.0|^12.0",
         "illuminate/database": "^11.0|^12.0"
     },
+    "require-dev": {
+        "pestphp/pest": "^3.8",
+        "pestphp/pest-plugin-laravel": "^3.2",
+        "orchestra/testbench": "^10.4",
+        "phpunit/phpunit": "^11.0"
+    },
     "autoload": {
         "psr-4": {
             "Bleuren\\LaravelSetting\\": "src/"
@@ -31,6 +37,11 @@
         "files": [
             "src/helpers.php"
         ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
     },
     "extra": {
         "laravel": {
@@ -41,5 +52,19 @@
                 "Setting": "Bleuren\\LaravelSetting\\Facades\\Setting"
             }
         }
-    }
+    },
+    "scripts": {
+        "test": "pest",
+        "test-coverage": "pest --coverage",
+        "post-autoload-dump": [
+            "@php vendor/bin/testbench package:discover --ansi"
+        ]
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }

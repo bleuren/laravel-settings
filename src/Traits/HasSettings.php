@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 
 /**
  * HasSettings Trait
@@ -22,21 +23,11 @@ trait HasSettings
 {
     /**
      * 保存已解析的設定值的記憶化緩存
+     * 使用模型類別名稱作為鍵來隔離不同模型的緩存
      *
-     * @var array<string, mixed>
+     * @var array<string, array<string, mixed>>
      */
     protected static array $inMemoryCache = [];
-
-    /**
-     * 初始化 trait
-     */
-    public function initializeHasSettings(): void
-    {
-        // 設定可填充的欄位
-        $this->fillable = array_merge($this->fillable, [
-            'key', 'description', 'value',
-        ]);
-    }
 
     /**
      * 模型啟動時註冊事件監聽器
@@ -45,17 +36,13 @@ trait HasSettings
     {
         static::saved(function (Model $model) {
             if ($model->hasSettingsFeature()) {
-                $cacheKey = $model->getCacheKey($model->key);
-                Cache::forget($cacheKey);
-                $model->forgetFromMemory($model->key);
+                $model->invalidateSettingCache($model->key);
             }
         });
 
         static::deleted(function (Model $model) {
             if ($model->hasSettingsFeature()) {
-                $cacheKey = $model->getCacheKey($model->key);
-                Cache::forget($cacheKey);
-                $model->forgetFromMemory($model->key);
+                $model->invalidateSettingCache($model->key);
             }
         });
     }
@@ -70,9 +57,6 @@ trait HasSettings
 
     /**
      * 獲取設定的完整緩存鍵名
-     *
-     * @param  string  $key  設定的鍵名
-     * @return string 完整緩存鍵名
      */
     public function getCacheKey(string $key): string
     {
@@ -83,30 +67,37 @@ trait HasSettings
     }
 
     /**
+     * 獲取模型專用的記憶化緩存鍵
+     */
+    protected function getMemoryCacheKey(string $key): string
+    {
+        return get_class($this).':'.$key;
+    }
+
+    /**
      * 獲取設定值
-     *
-     * @param  string  $key  設定鍵名
-     * @param  mixed  $default  默認值
-     * @return mixed 設定值或默認值
      */
     public function getSetting(string $key, mixed $default = null): mixed
     {
-        $cacheKey = $this->getCacheKey($key);
+        $memoryCacheKey = $this->getMemoryCacheKey($key);
 
-        // 檢查記憶化緩存中是否已存在此鍵
-        if (array_key_exists($cacheKey, self::$inMemoryCache)) {
-            return self::$inMemoryCache[$cacheKey] ?? $default;
+        // 檢查記憶化緩存
+        if (array_key_exists($memoryCacheKey, self::$inMemoryCache)) {
+            return self::$inMemoryCache[$memoryCacheKey] ?? $default;
         }
 
         try {
-            $value = Cache::memo()->rememberForever($cacheKey, function () use ($key) {
+            $cacheKey = $this->getCacheKey($key);
+
+            // 使用永久緩存，因為設定通常是長期存在的
+            $value = Cache::rememberForever($cacheKey, function () use ($key) {
                 $setting = $this->where('key', $key)->first();
 
-                return $setting ? $setting->value : null;
+                return $setting?->value;
             });
 
-            // 將結果保存到記憶化緩存中
-            self::$inMemoryCache[$cacheKey] = $value;
+            // 保存到記憶化緩存
+            self::$inMemoryCache[$memoryCacheKey] = $value;
 
             return $value ?? $default;
         } catch (\Throwable $e) {
@@ -118,11 +109,6 @@ trait HasSettings
 
     /**
      * 設置設定值
-     *
-     * @param  string  $key  設定鍵名
-     * @param  mixed  $value  設定值
-     * @param  string|null  $description  描述
-     * @return static 設定模型實例
      */
     public function setSetting(string $key, mixed $value, ?string $description = null): static
     {
@@ -131,28 +117,46 @@ trait HasSettings
             ['value' => $value, 'description' => $description ?? '']
         );
 
-        $cacheKey = $this->getCacheKey($key);
-        Cache::forever($cacheKey, $value);
-
-        // 更新記憶化緩存
-        self::$inMemoryCache[$cacheKey] = $value;
+        // 更新緩存
+        $this->updateSettingCache($key, $value);
 
         return $setting;
     }
 
     /**
-     * 批量設置設定值
-     *
-     * @param  array<string, mixed>  $settings  設定數組，格式為 ['key' => 'value', ...]
-     * @param  string|null  $description  所有設定的預設描述
-     * @return Collection<int, static> 設定模型實例集合
+     * 批量設置設定值（優化版本）
      */
     public function setManySettings(array $settings, ?string $description = null): Collection
     {
-        $models = collect();
+        if (empty($settings)) {
+            return collect();
+        }
 
-        foreach ($settings as $key => $value) {
-            $models->push($this->setSetting($key, $value, $description));
+        $models = collect();
+        $now = now();
+
+        try {
+            DB::transaction(function () use ($settings, $description, &$models, $now) {
+                foreach ($settings as $key => $value) {
+                    // 使用 upsert 進行批量操作（如果資料庫支援）
+                    $setting = $this->updateOrCreate(
+                        ['key' => $key],
+                        [
+                            'value' => $value,
+                            'description' => $description ?? '',
+                            'updated_at' => $now,
+                        ]
+                    );
+
+                    $models->push($setting);
+
+                    // 更新緩存
+                    $this->updateSettingCache($key, $value);
+                }
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            throw $e;
         }
 
         return $models;
@@ -160,21 +164,42 @@ trait HasSettings
 
     /**
      * 檢查設定是否存在
-     *
-     * @param  string  $key  設定鍵名
-     * @return bool 設定是否存在
      */
     public function hasSetting(string $key): bool
     {
-        $cacheKey = $this->getCacheKey($key);
+        $memoryCacheKey = $this->getMemoryCacheKey($key);
 
         // 檢查記憶化緩存
-        if (array_key_exists($cacheKey, self::$inMemoryCache)) {
-            return true;
+        if (array_key_exists($memoryCacheKey, self::$inMemoryCache)) {
+            return self::$inMemoryCache[$memoryCacheKey] !== null;
         }
 
         try {
-            return Cache::memo()->has($cacheKey) || $this->where('key', $key)->exists();
+            $cacheKey = $this->getCacheKey($key);
+
+            // 檢查 Laravel 緩存中是否有存在性標記
+            $existsCacheKey = $cacheKey.':exists';
+
+            if (Cache::has($existsCacheKey)) {
+                $exists = Cache::get($existsCacheKey);
+                if (! $exists) {
+                    self::$inMemoryCache[$memoryCacheKey] = null;
+                }
+
+                return $exists;
+            }
+
+            // 檢查資料庫
+            $exists = $this->where('key', $key)->exists();
+
+            // 緩存存在性結果
+            Cache::forever($existsCacheKey, $exists);
+
+            if (! $exists) {
+                self::$inMemoryCache[$memoryCacheKey] = null;
+            }
+
+            return $exists;
         } catch (\Throwable $e) {
             report($e);
 
@@ -184,30 +209,63 @@ trait HasSettings
 
     /**
      * 刪除設定
-     *
-     * @param  string  $key  設定鍵名
-     * @return bool 刪除是否成功
      */
     public function removeSetting(string $key): bool
     {
-        $deleted = (bool) $this->where('key', $key)->delete();
+        try {
+            $deleted = (bool) $this->where('key', $key)->delete();
 
+            if ($deleted) {
+                $this->invalidateSettingCache($key);
+            }
+
+            return $deleted;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return false;
+        }
+    }
+
+    /**
+     * 更新設定緩存
+     */
+    protected function updateSettingCache(string $key, mixed $value): void
+    {
         $cacheKey = $this->getCacheKey($key);
-        Cache::forget($cacheKey);
-        $this->forgetFromMemory($key);
+        $memoryCacheKey = $this->getMemoryCacheKey($key);
 
-        return $deleted;
+        // 更新 Laravel 緩存
+        Cache::forever($cacheKey, $value);
+        Cache::forever($cacheKey.':exists', true);
+
+        // 更新記憶化緩存
+        self::$inMemoryCache[$memoryCacheKey] = $value;
+    }
+
+    /**
+     * 清除設定緩存
+     */
+    protected function invalidateSettingCache(string $key): void
+    {
+        $cacheKey = $this->getCacheKey($key);
+        $memoryCacheKey = $this->getMemoryCacheKey($key);
+
+        // 清除 Laravel 緩存
+        Cache::forget($cacheKey);
+        Cache::forget($cacheKey.':exists');
+
+        // 清除記憶化緩存
+        unset(self::$inMemoryCache[$memoryCacheKey]);
     }
 
     /**
      * 從記憶化緩存中移除特定鍵
-     *
-     * @param  string  $key  設定鍵名
      */
     protected function forgetFromMemory(string $key): void
     {
-        $cacheKey = $this->getCacheKey($key);
-        unset(self::$inMemoryCache[$cacheKey]);
+        $memoryCacheKey = $this->getMemoryCacheKey($key);
+        unset(self::$inMemoryCache[$memoryCacheKey]);
     }
 
     /**
@@ -215,13 +273,18 @@ trait HasSettings
      */
     public function clearMemoryCache(): void
     {
-        self::$inMemoryCache = [];
+        $modelClass = get_class($this);
+
+        // 只清除當前模型的緩存
+        foreach (self::$inMemoryCache as $key => $value) {
+            if (str_starts_with($key, $modelClass.':')) {
+                unset(self::$inMemoryCache[$key]);
+            }
+        }
     }
 
     /**
      * 獲取所有設定
-     *
-     * @return Collection<int, static>
      */
     public function getAllSettings(): Collection
     {
@@ -230,9 +293,6 @@ trait HasSettings
 
     /**
      * 根據鍵名模式搜索設定
-     *
-     * @param  string  $pattern  搜索模式
-     * @return Collection<int, static>
      */
     public function searchSettings(string $pattern): Collection
     {
@@ -241,9 +301,8 @@ trait HasSettings
 
     /**
      * 支援靜態方法調用的魔術方法
-     * 這允許在模型上使用靜態方法來調用實例方法
      */
-    public static function __callStatic(string $method, array $parameters): mixed
+    public static function __callStatic($method, $parameters)
     {
         $instance = new static;
 

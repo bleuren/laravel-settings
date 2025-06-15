@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Illuminate\Support\Collection all() 獲取所有設定
  * @method static \Illuminate\Support\Collection search(string $pattern) 根據鍵名模式搜索設定
  *
+ * @see \Bleuren\LaravelSetting\Contracts\SettingRepository
  * @see \Bleuren\LaravelSetting\SettingManager
  */
 class Setting extends Facade
@@ -27,6 +28,6 @@ class Setting extends Facade
      */
     protected static function getFacadeAccessor(): string
     {
-        return 'setting';
+        return 'setting.manager';
     }
 }

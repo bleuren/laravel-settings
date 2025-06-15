@@ -13,7 +13,7 @@ class Setting extends Model
     use HasSettings;
 
     protected $fillable = [
-        'key', 'description', 'value',
+        'key', 'value', 'description',
     ];
 
     /**
@@ -25,8 +25,7 @@ class Setting extends Model
         $this->table = Config::get('settings.table', 'settings');
 
         // 從配置中獲取自定義數據庫連接
-        $connection = Config::get('settings.database_connection');
-        if ($connection) {
+        if ($connection = Config::get('settings.database_connection')) {
             $this->connection = $connection;
         }
 
@@ -35,12 +34,11 @@ class Setting extends Model
 
     /**
      * 重寫 trait 中的緩存鍵生成方法以保持簡潔的緩存鍵格式
-     * 對於默認的 Setting 模型，我們不需要包含類名
      */
     public function getCacheKey(string $key): string
     {
         $prefix = Config::get('settings.cache_prefix', 'settings.');
 
-        return $prefix.$key;
+        return $prefix.'Setting.'.$key;
     }
 }

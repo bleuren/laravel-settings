@@ -1,134 +1,121 @@
-# Laravel Settings Package
+# Laravel Settings
 
-本套件提供了一個簡單的方式，用於在Laravel應用程式中透過資料庫管理應用設定。使用此套件，您可以讀取和設置專案特定參數，並在程式碼中使用它們，同時還能利用Laravel的緩存功能來優化這些設定的存取和修改。
+**一個現代化、高性能的 Laravel 設定管理套件**
 
-## 功能特點
+*透過資料庫存儲應用設定，支援智能緩存、自定義模型和依賴注入*
 
-- 在資料庫中存儲設定，每個設定都有唯一的鍵值。
-- 自動緩存設定以提高性能。
-- 使用記憶化緩存減少同一請求中的重複查詢。
-- 支援批量設定操作。
-- 可自定義資料庫連接和表名。
-- 提供命令行工具用於清除設定緩存。
-- 支持預載入常用設定以提高性能。
-- 支援使用自定義 Eloquent 模型來處理設定。
-- 提供 HasSettings trait 以增強模型功能。
-- 完全向後兼容，無需修改現有代碼。
+---
 
-## 安裝
+## ✨ 功能特點
 
-使用以下命令在Laravel專案中安裝套件：
+- 🗄️ **資料庫存儲** - 在資料庫中安全存儲設定，支援複雜資料類型
+- ⚡ **智能緩存** - 多層緩存策略：Laravel 緩存 + 記憶化緩存
+- 🔧 **Contract 驅動** - 基於 `SettingRepository` Contract，支援依賴注入
+- 🎯 **自定義模型** - 完全支援自定義 Eloquent 模型和欄位
+- 📦 **批量操作** - 高效的批量設定操作，支援資料庫事務
+- 🚀 **預載入功能** - 可配置的常用設定預載入，提升性能
+- 🛠️ **命令行工具** - 提供緩存管理和維護命令
+- 🧪 **完整測試** - 106 個測試，229 個斷言，確保穩定性
+- 📋 **Laravel 慣例** - 完全符合 Laravel 設計模式和最佳實踐
+
+## 📋 系統需求
+
+- PHP 8.3+
+- Laravel 11.0+ 或 12.0+
+
+## 🚀 安裝
+
+透過 Composer 安裝套件：
 
 ```bash
 composer require bleuren/laravel-settings
 ```
 
-## 設定
-
-安裝後，發布遷移文件和配置文件：
+發布並執行遷移：
 
 ```bash
 php artisan vendor:publish --tag=laravel-settings-migrations
-php artisan vendor:publish --tag=laravel-settings-config
-```
-
-運行遷移以創建 `settings` 表：
-
-```bash
 php artisan migrate
 ```
 
-## 使用方法
+（可選）發布配置文件：
 
-### 獲取設定
-
-您可以使用 `Setting` 門面來獲取設定值。以下是獲取設定值的範例：
-
-```php
-use Bleuren\Setting\Facades\Setting;
-
-// 獲取設定值，如果不存在則返回預設值
-$value = Setting::get('some_key', 'default_value');
+```bash
+php artisan vendor:publish --tag=laravel-settings-config
 ```
 
-### 設置設定值
+## 📖 基本使用
 
-要更新或創建新的設定：
+### Facade 方式（推薦）
 
 ```php
-use Bleuren\Setting\Facades\Setting;
+use Bleuren\LaravelSetting\Facades\Setting;
 
-// 設置單個設定值
-Setting::set('some_key', 'new_value', '選項描述');
+// 獲取設定值
+$appName = Setting::get('app.name', 'Default App');
 
-// 批量設置設定值
+// 設置設定值
+Setting::set('app.name', 'My Application', '應用程式名稱');
+
+// 批量設置
 Setting::setMany([
-    'app_name' => 'My App',
-    'app_logo' => '/images/logo.png',
-    'maintenance_mode' => false
-], '應用設定');
+    'app.name' => 'My App',
+    'app.theme' => 'dark',
+    'app.timezone' => 'Asia/Taipei',
+    'maintenance.mode' => false
+], '應用程式基本設定');
+
+// 檢查設定是否存在
+if (Setting::has('app.name')) {
+    // 執行相關邏輯
+}
+
+// 刪除設定
+Setting::remove('old.setting');
+
+// 搜索設定
+$appSettings = Setting::search('app.%');
+
+// 獲取所有設定
+$allSettings = Setting::all();
 ```
 
-### 檢查設定是否存在
-
-檢查某個設定是否存在：
+### 輔助函數
 
 ```php
-if (Setting::has('some_key')) {
-    // 做某些操作
+// 簡潔的獲取方式
+$appName = setting('app.name', 'Default App');
+$theme = setting('app.theme');
+```
+
+### 依賴注入方式
+
+```php
+use Bleuren\LaravelSetting\Contracts\SettingRepository;
+
+class UserController extends Controller
+{
+    public function __construct(
+        private SettingRepository $settings
+    ) {}
+
+    public function updateProfile(Request $request)
+    {
+        // 使用注入的設定服務
+        $defaultTheme = $this->settings->get('user.default_theme', 'light');
+        
+        // 更新使用者偏好設定
+        $this->settings->setMany([
+            'user.theme' => $request->theme,
+            'user.language' => $request->language,
+        ], '使用者偏好設定');
+    }
 }
 ```
 
-### 刪除設定
+## 🎨 自定義模型
 
-刪除某個設定：
-
-```php
-Setting::remove('some_key');
-```
-
-### 清除緩存
-
-如果您需要清除設定的緩存，可以使用提供的命令：
-
-```bash
-# 清除所有設定的緩存
-php artisan setting:clear
-
-# 清除特定設定的緩存
-php artisan setting:clear some_key
-
-# 清除自定義模型的緩存
-php artisan setting:clear some_key --model="App\Models\CustomSetting"
-```
-
-## 高級功能
-
-### 記憶化緩存
-
-套件自動利用 Laravel 12 的記憶化緩存功能，減少同一請求中的重複查詢。
-
-### 預載入設定
-
-配置常用設定的預載入以提升性能：
-
-```php
-// config/settings.php
-'eager_load' => true,
-'eager_load_keys' => [
-    'app.name',
-    'app.theme', 
-    'user.default_timezone',
-],
-```
-
-## 自定義設定模型
-
-Laravel Settings 套件採用靈活的架構設計，您可以使用自己的 Eloquent 模型來處理設定，而不是僅限於套件預設的 Setting 模型。
-
-### 使用 HasSettings Trait
-
-1. **創建自定義設定模型**：
+### 創建自定義設定模型
 
 ```php
 <?php
@@ -146,155 +133,266 @@ class UserSetting extends Model
     
     protected $fillable = [
         'key', 'value', 'description',
-        'user_id', 'category', 'is_public', // 額外的自定義欄位
+        'user_id', 'category', 'is_public'
     ];
 
     protected $casts = [
         'is_public' => 'boolean',
-        'user_id' => 'integer',
     ];
 
-    // 關聯關係
+    // 自定義關聯
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    // 自定義方法
+    // 自定義查詢方法
     public function getSettingsByCategory(string $category)
     {
         return $this->where('category', $category)->get();
     }
 
-    public function getUserSettings(int $userId)
+    public function getPublicSettings()
     {
-        return $this->where('user_id', $userId)->get();
+        return $this->where('is_public', true)->get();
     }
 }
 ```
 
-2. **創建資料表遷移**：
-
-```bash
-php artisan make:migration create_user_settings_table
-```
-
-```php
-Schema::create('user_settings', function (Blueprint $table) {
-    $table->id();
-    $table->string('key', 191)->index();
-    $table->text('value')->nullable();
-    $table->string('description')->nullable();
-    
-    // 自定義欄位
-    $table->foreignId('user_id')->constrained()->onDelete('cascade');
-    $table->string('category')->default('general')->index();
-    $table->boolean('is_public')->default(false);
-    
-    $table->timestamps();
-    
-    // 複合唯一鍵（用戶級別的設定唯一性）
-    $table->unique(['user_id', 'key']);
-});
-```
-
-3. **配置自定義模型**：
-
-```php
-// config/settings.php
-'model' => App\Models\UserSetting::class,
-```
-
-### 完整功能支援
-
-自定義模型支援所有原有功能，包括：
-
-```php
-use Bleuren\Setting\Facades\Setting;
-
-// 透過 Facade 使用（推薦）
-$value = Setting::get('theme', 'dark');
-Setting::set('theme', 'light', '用戶主題設定');
-Setting::setMany(['lang' => 'zh-TW', 'timezone' => 'Asia/Taipei']);
-
-// 直接使用模型靜態方法
-UserSetting::set('notification', true);
-$hasNotification = UserSetting::has('notification');
-
-// 使用模型實例進行複雜操作
-$model = Setting::getModel();
-$userSettings = $model->getUserSettings(1);
-```
-
-### HasSettings Trait API
-
-| 方法 | 描述 | 靜態支援 |
-|------|------|----------|
-| `getSetting($key, $default)` | 獲取設定值 | ✅ `get()` |
-| `setSetting($key, $value, $desc)` | 設置設定值 | ✅ `set()` |
-| `setManySettings($settings, $desc)` | 批量設置 | ✅ `setMany()` |
-| `hasSetting($key)` | 檢查設定存在 | ✅ `has()` |
-| `removeSetting($key)` | 刪除設定 | ✅ `remove()` |
-| `getAllSettings()` | 獲取所有設定 | ✅ `all()` |
-| `searchSettings($pattern)` | 搜索設定 | ✅ `search()` |
-| `clearMemoryCache()` | 清除緩存 | ✅ |
-
-## 自定義資料庫連接和表名
-
-您可以在 `config/settings.php` 中自定義資料庫連接和表名：
-
-```php
-// 指定自定義模型（可選，預設使用套件的 Setting 模型）
-'model' => \Bleuren\LaravelSetting\Setting::class,
-
-// 自定義資料庫連接（可選）
-'database_connection' => 'mysql',
-
-// 自定義表名（預設為 'settings'）
-'table' => 'app_settings',
-```
-
-## 配置與最佳實踐
-
-### 完整配置選項
+### 配置自定義模型
 
 ```php
 // config/settings.php
 return [
-    'cache_prefix' => 'settings.',                    // 緩存前綴
-    'model' => \Bleuren\LaravelSetting\Setting::class, // 設定模型
-    'eager_load' => false,                            // 預載入開關
-    'eager_load_keys' => [],                          // 預載入鍵
-    'database_connection' => null,                    // 資料庫連接
-    'table' => 'settings',                           // 表名
+    'model' => App\Models\UserSetting::class,
+    'table' => 'user_settings',
+    'database_connection' => 'mysql',
+    'cache_prefix' => 'user_settings.',
+    
+    // 其他配置...
 ];
 ```
 
-### 環境變數
+### 使用自定義模型
 
-```env
-SETTINGS_MODEL="App\Models\UserSetting"
-SETTINGS_EAGER_LOAD=true
-SETTINGS_DB_CONNECTION=mysql
+```php
+// 透過 Facade（會使用配置的模型）
+Setting::set('notification.email', true);
+
+// 直接使用模型靜態方法
+UserSetting::set('theme.color', 'blue');
+$hasNotification = UserSetting::has('notification.email');
+
+// 使用自定義方法
+$publicSettings = UserSetting::getPublicSettings();
+$categorySettings = UserSetting::getSettingsByCategory('appearance');
 ```
 
-### 最佳實踐
+## 📚 API 參考
 
-1. **命名規範**：使用點號分隔，如 `app.name`、`user.theme`
-2. **模型設計**：為不同用途設計專用模型（用戶設定、系統設定等）
-3. **緩存策略**：合理使用預載入，避免過多的記憶體佔用
-4. **資料驗證**：在設定前進行適當的資料驗證
+### SettingRepository Contract
 
-### 常見問題
+| 方法 | 描述 | 返回類型 |
+|------|------|----------|
+| `get(string $key, mixed $default = null)` | 獲取設定值 | `mixed` |
+| `set(string $key, mixed $value, ?string $description = null)` | 設置設定值 | `Model` |
+| `setMany(array $settings, ?string $description = null)` | 批量設置設定 | `Collection` |
+| `has(string $key)` | 檢查設定是否存在 | `bool` |
+| `remove(string $key)` | 刪除設定 | `bool` |
+| `all()` | 獲取所有設定 | `Collection` |
+| `search(string $pattern)` | 搜索設定（支援 SQL LIKE） | `Collection` |
+| `clearMemoryCache()` | 清除記憶體緩存 | `void` |
+| `cacheKey(string $key)` | 獲取緩存鍵名 | `string` |
+| `getModel()` | 獲取模型實例 | `Model` |
 
-- **模型錯誤**：確保自定義模型使用 `HasSettings` trait
-- **緩存問題**：使用 `php artisan setting:clear` 清除緩存
-- **遷移問題**：確保資料表包含 `key`、`value`、`description` 欄位
+### HasSettings Trait 方法
 
-## 貢獻
+| Trait 方法 | 靜態別名 | 描述 |
+|------------|----------|------|
+| `getSetting($key, $default)` | `get()` | 獲取設定值 |
+| `setSetting($key, $value, $desc)` | `set()` | 設置設定值 |
+| `setManySettings($settings, $desc)` | `setMany()` | 批量設置 |
+| `hasSetting($key)` | `has()` | 檢查設定存在 |
+| `removeSetting($key)` | `remove()` | 刪除設定 |
+| `getAllSettings()` | `all()` | 獲取所有設定 |
+| `searchSettings($pattern)` | `search()` | 搜索設定 |
 
-非常歡迎您對Laravel Settings套件的貢獻。請隨時提交任何問題或拉取請求。
+## ⚙️ 配置選項
 
-## 授權
+```php
+// config/settings.php
+return [
+    // 設定模型類別
+    'model' => env('SETTINGS_MODEL', \Bleuren\LaravelSetting\Setting::class),
 
-本Laravel Settings套件是根據[MIT許可證](http://opensource.org/licenses/MIT)授權的開源軟體。
+    // 資料庫配置
+    'database_connection' => env('SETTINGS_DB_CONNECTION', null),
+    'table' => env('SETTINGS_TABLE', 'settings'),
+
+    // 緩存配置
+    'cache_prefix' => env('SETTINGS_CACHE_PREFIX', 'settings.'),
+
+    // 預載入配置
+    'eager_load' => env('SETTINGS_EAGER_LOAD', false),
+    'eager_load_keys' => [
+        'app.name',
+        'app.theme',
+        'app.timezone',
+        // 添加常用的設定鍵...
+    ],
+
+    // 效能配置
+    'batch_size' => env('SETTINGS_BATCH_SIZE', 100),
+    'enable_query_log' => env('SETTINGS_ENABLE_QUERY_LOG', false),
+];
+```
+
+## 🚀 高級功能
+
+### 預載入設定
+
+提升應用啟動性能，預載入常用設定：
+
+```php
+// config/settings.php
+'eager_load' => true,
+'eager_load_keys' => [
+    'app.name',
+    'app.logo',
+    'app.theme',
+    'mail.from_address',
+    'social.facebook_url',
+],
+```
+
+### 緩存管理
+
+```bash
+# 清除所有設定緩存
+php artisan setting:clear
+
+# 清除特定設定緩存
+php artisan setting:clear app.name
+
+# 清除記憶體緩存（程式碼中）
+Setting::clearMemoryCache();
+```
+
+### 批量操作最佳實踐
+
+```php
+// 高效的批量操作
+$settings = [
+    'mail.driver' => 'smtp',
+    'mail.host' => 'smtp.gmail.com',
+    'mail.port' => 587,
+    'mail.encryption' => 'tls',
+];
+
+// 使用事務確保一致性
+Setting::setMany($settings, '郵件服務設定');
+```
+
+### 搜索和過濾
+
+```php
+// 搜索所有應用相關設定
+$appSettings = Setting::search('app.%');
+
+// 搜索所有郵件設定
+$mailSettings = Setting::search('mail.%');
+
+// 使用自定義模型的進階搜索
+$publicSettings = UserSetting::getPublicSettings();
+$categorySettings = UserSetting::getSettingsByCategory('appearance');
+```
+
+## 🏗️ 架構設計
+
+### 設計模式
+
+- **Contract Pattern** - 基於 `SettingRepository` 介面
+- **Repository Pattern** - 抽象資料存取層
+- **Service Provider Pattern** - Laravel 服務註冊
+- **Facade Pattern** - 簡潔的靜態介面
+- **Trait Pattern** - 可重用的功能模組
+
+### 緩存策略
+
+1. **Laravel 緩存** - 使用 `Cache::rememberForever()` 永久緩存
+2. **記憶化緩存** - 請求期間的記憶體緩存
+3. **模型隔離** - 不同模型使用獨立緩存空間
+4. **智能失效** - 資料更新時自動清除相關緩存
+
+### 依賴注入
+
+```php
+// 在服務提供者中註冊
+$this->app->bind(SettingRepository::class, SettingManager::class);
+
+// 在控制器中使用
+public function __construct(SettingRepository $settings) {
+    $this->settings = $settings;
+}
+```
+
+## 🧪 測試
+
+執行完整測試套件：
+
+```bash
+# 執行所有測試
+composer test
+
+# 執行測試並生成覆蓋率報告
+composer test-coverage
+
+# 執行特定測試
+./vendor/bin/pest tests/Feature/SettingFacadeTest.php
+```
+
+### 測試覆蓋範圍
+
+- ✅ **106 個測試，229 個斷言**
+- ✅ Contract 和依賴注入測試
+- ✅ 緩存機制測試
+- ✅ 自定義模型測試
+- ✅ 批量操作測試
+- ✅ 錯誤處理測試
+- ✅ 整合測試
+
+## 🔧 遷移指南
+
+### 從其他設定套件遷移
+
+如果您正在使用其他設定套件，可以輕鬆遷移：
+
+```php
+// 舊的設定套件
+Settings::set('key', 'value');
+$value = Settings::get('key');
+
+// Laravel Settings（相容的 API）
+Setting::set('key', 'value');
+$value = Setting::get('key');
+```
+
+### 資料庫結構
+
+預設的設定表結構：
+
+```sql
+CREATE TABLE settings (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    key VARCHAR(191) UNIQUE NOT NULL,
+    value TEXT NULL,
+    description VARCHAR(255) NULL,
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL,
+    INDEX idx_settings_key (key)
+);
+```
+
+## 📄 授權
+
+本套件基於 [MIT 授權條款](LICENSE.md) 開源。
