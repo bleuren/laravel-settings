@@ -395,4 +395,4 @@ CREATE TABLE settings (
 
 ## 📄 授權
 
-本套件基於 [MIT 授權條款](LICENSE.md) 開源。
+本套件基於 [MIT 授權條款](LICENSE) 開源。
